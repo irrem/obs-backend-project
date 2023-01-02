@@ -58,5 +58,5 @@ app.post("/create/users", jsonParser, function (req, res) {
 });
 
 app.listen(8081, function () {
-  console.log("Server Started 8081");
+  console.log("Server Started 8081 test çalışıyor");
 });
