@@ -303,19 +303,96 @@ app.post("/student/breakLessons", jsonParser, function (req, err) {
 });
 
 //gettranscript
-app.get("/student/getTranscript", function (req, err) {});
+app.get("/student/getTranscript", async function (req, err) {
+
+  await client.connect(async function (err, db) {
+    if (err) throw err;
+
+    var dbo = db.db("dist-proj");
+
+    all.forEach((element) => {
+      console.log(element._id, element.name);
+    });
+    await dbo
+      .collection("transcript")
+      .find({})
+      .toArray()
+      .then((item) => {
+        res.send(item);
+      });
+  });
+
+});
 
 // getabsenteeism (yoklama)
-app.get("/student/getAbsenteeism", function (req, err) {});
+app.get("/student/getAbsenteeism", function (req, err) {
+
+});
 
 //add community info topluluk adi, ogrenci
-app.post("/student/addCommunity", jsonParser, function (req, err) {});
+app.post("/student/addCommunity", jsonParser, function (req, err) {
+  client.connect(function (err, db) {
+    if (err) throw err;
+
+    var dbo = db.db("dist-proj");
+    var myobj = req.body;
+
+    dbo
+      .collection("studentCommunities")
+      .insertOne(myobj, function (err2, res2) {
+        if (err2) throw err2;
+
+        console.log("1 community inserted");
+
+        db.close();
+      });
+  });
+
+  res.send("success community inserted");
+});
 
 //get community info
-app.get("/student/getCommuntiyInfo", function (req, err) {});
+app.get("/student/getCommuntiyInfo", function (req, err) {
+  const { token } = req.body;
+
+  var decoded = jwt.verify(token, process.env.JWT_KEY);
+
+  client.connect(function (err, db) {
+    if (err) throw err;
+
+    var dbo = db.db("dist-proj");
+
+    dbo
+      .collection("studentCommunities")
+      .findOne({ _id: ObjectId(decoded._id) })
+      .then((item) => {
+        res.send(item);
+      });
+  });
+});
 
 //add Application (basvuru cap/yan dal) bolum ad, userid, basvurulacak sey
-app.post("/student/addApplication", jsonParser, function (req, err) {});
+app.post("/student/addApplication", jsonParser, function (req, err) {
+  client.connect(function (err, db) {
+
+    if (err) throw err;
+
+    var dbo = db.db("dist-proj");
+    var myobj = req.body;
+
+    dbo
+      .collection("studentApplications")
+      .insertOne(myobj, function (err2, res2) {
+        if (err2) throw err2;
+
+        console.log("1 appliation inserted");
+
+        db.close();
+      });
+  });
+
+  res.send("success application inserted");
+});
 
 app.listen(3000, function () {
   console.log("Server Started 3000 test çalışıyor");
