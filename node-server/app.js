@@ -10,44 +10,37 @@ const uri = "mongodb+srv://admin:Admin12120.@cluster0.k88achw.mongodb.net/test";
 
 const client = new MongoClient(uri);
 
-app.get("/get/users", async function (req, res) {
+//need auth
+app.post("/login",async function(req,res){
+
+})
+
+app.post("/forgotPassword",async function(req,res){
+  
+})
+
+//need auth
+app.get("/admin/getStudents", async function (req, res) {
     await client.connect(async function (err, db) {
         if (err) throw err;
     
         var dbo = db.db("dist-proj");
-       
-        var all= dbo
-        .collection("users").find({});
 
         all.forEach(element => {
           console.log(element._id,element.name);
         });
-        await dbo.collection("users").find({}).toArray().then((item)=>{
-          console.log(item,"pending fin")
+        await dbo.collection("users")
+        .find({})
+        .toArray()
+        .then((item)=>{
+          res.send(item);
         })
       
       });
     
 });
 
-app.post("/get/users", jsonParser, function (req, res) {
-  const name = req.body.name;
-
-  client.connect(function (err, db) {
-    if (err) throw err;
-
-    var dbo = db.db("dist-proj");
-
-    dbo
-      .collection("users")
-      .findOne({ name: name })
-      .then((item) => {
-        res.send(item);
-      });
-  });
-});
-
-app.post("/create/users", jsonParser, function (req, res) {
+app.post("/admin/createStudent", jsonParser, function (req, res) {
   client.connect(function (err, db) {
     if (err) throw err;
 
@@ -66,7 +59,7 @@ app.post("/create/users", jsonParser, function (req, res) {
   res.send("success");
 });
 
-app.post("/delete/users", jsonParser, function (req, res) {
+app.post("/admin/deleteStudent", jsonParser, function (req, res) {
   const name = req.body.name;
 
   client.connect(function (err, db) {
@@ -84,7 +77,50 @@ app.post("/delete/users", jsonParser, function (req, res) {
   });
 });
 
-app.post("/update/users", jsonParser, function (req, res) {
+app.post("/admin/createLessons", jsonParser, function (req, res) {
+  client.connect(function (err, db) {
+    if (err) throw err;
+
+    var dbo = db.db("dist-proj");
+    var myobj = req.body;
+    let lessons={
+      lessonName:lessonName,
+      ACTS:ACTS,
+      lessonCode:lessonCode,
+      lessonGrade:lessonGrade
+    }
+
+    dbo.collection("lessons").insertOne(myobj, function (err2, res2) {
+      if (err2) throw err2;
+
+      console.log("1 document inserted");
+
+      db.close();
+    });
+  });
+
+  res.send("success");
+});
+
+//get student profile
+app.post("/student/getProfile", jsonParser, function (req, res) {
+  const name = req.body.name;
+
+  client.connect(function (err, db) {
+    if (err) throw err;
+
+    var dbo = db.db("dist-proj");
+
+    dbo
+      .collection("users")
+      .findOne({ name: name })
+      .then((item) => {
+        res.send(item);
+      });
+  });
+});
+
+app.post("/student/updateProfile", jsonParser, function (req, res) {
   const name = req.body.name
   let updatedData={
     name:req.body.name,
@@ -105,19 +141,89 @@ app.post("/update/users", jsonParser, function (req, res) {
   });
 });
 
+app.get("/student/getLessons",async function(req,err){
+  await client.connect(async function (err, db) {
+    if (err) throw err;
 
-// login
-// forgetpassword
-// add lessons
-// get lessons
-// break lessons delete
-// get profile
-// update profile
-// gettranscript
+    var dbo = db.db("dist-proj");
+
+    all.forEach(element => {
+      console.log(element._id,element.name);
+    });
+    await dbo.collection("lessons")
+    .find({})
+    .toArray()
+    .then((item)=>{
+      res.send(item);
+    })
+  
+  });
+});
+
+app.post("/student/addLessons",jsonParser,function(req,err){
+  client.connect(function (err, db) {
+    if (err) throw err;
+
+    var dbo = db.db("dist-proj");
+    var myobj = req.body;
+
+    dbo.collection("studentCurrentLessons").insertOne(myobj, function (err2, res2) {
+      if (err2) throw err2;
+
+      console.log("1 lesson inserted");
+
+      db.close();
+    });
+  });
+
+  res.send("success lesson inserted");
+});
+
+app.post("/student/breakLessons",jsonParser,function(req,err){
+  const lessonId = req.body.lessonId;
+
+  client.connect(function (err, db) {
+    if (err) throw err;
+
+    var dbo = db.db("dist-proj");
+    dbo
+      .collection("studentCurrentLessons")
+      .findOneAndDelete({ lessonId: lessonId })
+      .then(() => {
+        res.send("student deleted successfully");
+      })
+      .catch(error=>
+        res.send("an error occured! ",error));
+  });
+});
+
+//gettranscript
+app.get("/student/getTranscript",function(req,err){
+
+});
+
 // getabsenteeism (yoklama)
+app.get("/student/getAbsenteeism",function(req,err){
+
+});
+
 //add community info topluluk adi, ogrenci
+app.post("/student/addCommunity",jsonParser,function(req,err){
+
+});
+
 //get community info
+app.get("/student/getCommuntiyInfo",function(req,err){
+
+});
+
 //add Application (basvuru cap/yan dal) bolum ad, userid, basvurulacak sey
+app.post("/student/addApplication",jsonParser,function(req,err){
+
+});
+
+
+
 
 app.listen(3000, function () {
   console.log("Server Started 3000 test çalışıyor");
