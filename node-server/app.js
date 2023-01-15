@@ -60,10 +60,7 @@ app.post("/login", jsonParser, async function (req, res) {
           response.password === req.body.password
         ) {
           delete response.password;
-          const accessToken = jwt.sign(
-            { username: req?.body?.username, _id: response?._id },
-            process.env.JWT_KEY
-          );
+    
           res.send({
             response,
             token: jwt.sign(
@@ -71,7 +68,7 @@ app.post("/login", jsonParser, async function (req, res) {
               process.env.JWT_KEY
             ),
           });
-          res.json({ accessToken: accessToken });
+         
         } else {
           res.send("Wrong password");
         }
@@ -148,22 +145,25 @@ app.post("/admin/createStudent", jsonParser, function (req, res) {
       var checkUser= client
       .db("dist-proj")
       .collection("users")
-      .findOne({username:username});
-      if(!checkUser){
-        client
-        .db("dist-proj")
-        .collection("users")
-        .insertOne(
-          { name, surname, grade, role, department, password, username },
-          function (err2, res2) {
-            if (err2) throw err2;
-            res.send("user added");
-            db.close();
-          }
-        );
-      }else{
-        res.send("User already exist !");
+      .findOne({username:username}).then((item)=>{
+        if(!item){
+          client
+          .db("dist-proj")
+          .collection("users")
+          .insertOne(
+            { name, surname, grade, role, department, password, username },
+            function (err2, res2) {
+              if (err2) throw err2;
+              res.send("user added");
+            }
+          );
+        }
+        else{
+          res.send("User already exist !");
+        }
       }
+      )
+
     } else {
       res.send("Admin role required.");
     }
@@ -264,7 +264,7 @@ app.post("/student/updateProfile", jsonParser, async function (req, res) {
         client
         .db("dist-proj")
           .collection("users")
-          .findOneAndUpdate({ _id: ObjectId(decoded._id) }, { $set: updatedData })
+          .findOneAndUpdate({ _id: ObjectId(user._id) }, { $set: updatedData })
           .then(() => {
             res.send("student updated successfully");
           })
