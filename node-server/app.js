@@ -233,7 +233,7 @@ app.post("/student/getProfile", jsonParser, async function (req, res) {
         client
         .db("dist-proj")
           .collection("users")
-          .findOne({ _id: ObjectId(decoded._id) })
+          .findOne({ _id: ObjectId(user._id) })
           .then((item) => {
             res.send(item);
           });
