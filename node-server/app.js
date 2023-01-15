@@ -14,7 +14,6 @@ var jsonParser = bodyParser.json();
 const uri = "mongodb+srv://admin:Admin12120.@cluster0.k88achw.mongodb.net/test";
 
 const client = new MongoClient(uri);
-var currentToken = "";
 
 async function authControl(req) {
   // kullanıcı var mı? varsa json olarak verilerini dön. yoksa hata dön.
@@ -46,13 +45,12 @@ async function authControl(req) {
     });
 }
 
-//need auth
 app.post("/login", jsonParser, async function (req, res) {
   client.connect(function (err, db) {
     if (err) throw err;
-    var dbo = db.db("dist-proj");
-    dbo
-      .collection("users")
+   client
+   .db("dist-proj")
+    .collection("users")
       .findOne({ username: req.body.username })
       .then((response) => {
         if (!response || response === null) {
@@ -73,14 +71,12 @@ app.post("/login", jsonParser, async function (req, res) {
               process.env.JWT_KEY
             ),
           });
-          currentToken = accessToken;
           res.json({ accessToken: accessToken });
         } else {
           res.send("Wrong password");
         }
       });
   });
-  console.log("current token", currentToken);
 });
 
 app.post("/register", jsonParser, async function (req, res) {
@@ -89,9 +85,9 @@ app.post("/register", jsonParser, async function (req, res) {
   client.connect(function (err, db) {
     if (err) throw err;
 
-    var dbo = db.db("dist-proj");
-
-    dbo.collection("users").insertOne(
+    client
+    .db("dist-proj")
+    .collection("users").insertOne(
       {
         name,
         surname,
@@ -119,36 +115,42 @@ app.post("/test", jsonParser, async function (req, res) {
   res.send(await authControl(req));
 });
 
-//ok
 app.get("/admin/getStudents", async function (req, res) {
-  await client.connect(async function (err, db) {
-    if (err) throw err;
-
-    var dbo = db.db("dist-proj");
-
-    all.forEach((element) => {
-      console.log(element._id, element.name);
-    });
-    await dbo
-      .collection("users")
-      .find({})
-      .toArray()
-      .then((item) => {
-        res.send(item);
+ await authControl(req).then((user) => {
+    if (!user._id) {
+      res.send("User not found");
+    } else if (user.role === "admin") {
+      client.connect(async function (err, db) {
+        if (err) throw err;
+        
+        await client
+        .db("dist-proj")
+          .collection("users")
+          .find({})
+          .toArray()
+          .then((item) => {
+            res.send(item);
+          });
       });
+    }else{
+      res.send("Invalid , Admin role required");
+    }
   });
 });
 
-//ok auth?
 app.post("/admin/createStudent", jsonParser, function (req, res) {
-  const { name, surname, grade, role, department, password, username } =
-    req.body;
+  const { name, surname, grade, role, department, password, username } =req.body;
   authControl(req).then((user) => {
     if (!user._id) {
       res.send("user not found");
     } else if (user.role === "admin") {
       client.connect();
-      client
+      var checkUser= client
+      .db("dist-proj")
+      .collection("users")
+      .findOne({username:username});
+      if(!checkUser){
+        client
         .db("dist-proj")
         .collection("users")
         .insertOne(
@@ -159,14 +161,17 @@ app.post("/admin/createStudent", jsonParser, function (req, res) {
             db.close();
           }
         );
+      }else{
+        res.send("User already exist !");
+      }
     } else {
       res.send("Admin role required.");
     }
   });
 });
 
-//ok auth ?
 app.post("/admin/deleteStudent", jsonParser, function (req, res) {
+ try {
   authControl(req).then((user) => {
     if (!user._id) {
       res.send("user not found");
@@ -180,61 +185,68 @@ app.post("/admin/deleteStudent", jsonParser, function (req, res) {
           res.send("student deleted successfully");
         })
         .catch((error) => res.send("an error occured! ", error));
+    } else {
+      res.send("Admin role required.");
+    }
+  });
+ } catch (error) {
+  res.send(error);
+ }
+});
+
+//lessonName,lessonCode,ACTS,lessonGrade
+app.post("/admin/createLessons", jsonParser, async function (req, res) {
+
+  const {lessonName,lessonCode,ACTS,lessonGrade}=req.body; 
+  await authControl(req).then((user) => {
+    if (!user._id) {
+      res.send("user not found");
+    } else if (user.role === "admin") {
+      client.connect(function (err, db) {
+        if (err) throw err;
+        client
+        .db("dist-proj")
+        .collection("lessons")
+        .insertOne({lessonName,lessonCode,ACTS,lessonGrade}, function (err2, res2) {
+          if (err2) throw err2;
+
+          console.log("1 lesson inserted");
+
+          db.close();
+        });
+      });
+    } else {
+      res.send("Admin role required.");
+    }
+  });
+  res.send("success");
+});
+
+app.post("/student/getProfile", jsonParser, async function (req, res) {
+  await authControl(req).then((user) => {
+    if (!user._id) {
+      res.send("user not found");
+    } else if (user.role === "student") {
+      client.connect(function (err, db) {
+        if (err) throw err;
+
+        client
+        .db("dist-proj")
+          .collection("users")
+          .findOne({ _id: ObjectId(decoded._id) })
+          .then((item) => {
+            res.send(item);
+          });
+      });
+    } else {
+      res.send("Student role required.");
     }
   });
 });
 
-//ok auth ?
-app.post("/admin/createLessons", jsonParser, function (req, res) {
-  client.connect(function (err, db) {
-    if (err) throw err;
-
-    var dbo = db.db("dist-proj");
-    var myobj = req.body;
-
-    let lessons = {
-      lessonName: req.body.lessonName,
-      ACTS: req.body.acts,
-      lessonCode: req.body.lessonCode,
-      lessonGrade: req.body.lessonGrade,
-    };
-
-    dbo.collection("lessons").insertOne(lessons, function (err2, res2) {
-      if (err2) throw err2;
-
-      console.log("1 lesson inserted");
-
-      db.close();
-    });
-  });
-
-  res.send("success");
-});
-
-//get student profile auth ok
-app.post("/student/getProfile", jsonParser, function (req, res) {
-  const { token } = req.body;
-
-  var decoded = jwt.verify(token, process.env.JWT_KEY);
-
-  client.connect(function (err, db) {
-    if (err) throw err;
-
-    var dbo = db.db("dist-proj");
-    dbo
-      .collection("users")
-      .findOne({ _id: ObjectId(decoded._id) })
-      .then((item) => {
-        res.send(item);
-      });
-  });
-});
-
-//ok auth ekleyeceğiz, student vs admin
-app.post("/student/updateProfile", jsonParser, function (req, res) {
-  const { token } = req.body;
-  var decoded = jwt.verify(token, process.env.JWT_KEY);
-
+//parameters ? 
+app.post("/student/updateProfile", jsonParser, async function (req, res) {
+ 
   // özellikler genişletilecek
   let updatedData = {
     name: req.body.name,
@@ -242,89 +254,125 @@ app.post("/student/updateProfile", jsonParser, function (req, res) {
     password: req.body.password,
   };
 
-  client.connect(function (err, db) {
-    if (err) throw err;
-
-    var dbo = db.db("dist-proj");
-    dbo
-      .collection("users")
-      .findOneAndUpdate({ _id: ObjectId(decoded._id) }, { $set: updatedData })
-      .then(() => {
-        res.send("student updated successfully");
-      })
-      .catch((error) => res.send("an error occured! ", error));
-  });
-});
-
-//OK
-app.get("/student/getLessons", async function (req, res) {
-  await client.connect(async function (err, db) {
-    if (err) throw err;
-
-    var dbo = db.db("dist-proj");
-
-    await dbo
-      .collection("lessons")
-      .find({})
-      .toArray()
-      .then((item) => {
-        res.send(item);
+  await authControl(req).then((user) => {
+    if (!user._id) {
+      res.send("user not found");
+    } else if (user.role === "student") {
+      client.connect(function (err, db) {
+        if (err) throw err;
+    
+        client
+        .db("dist-proj")
+          .collection("users")
+          .findOneAndUpdate({ _id: ObjectId(decoded._id) }, { $set: updatedData })
+          .then(() => {
+            res.send("student updated successfully");
+          })
+          .catch((error) => res.send("an error occured! ", error));
       });
-  });
-});
-
-//token yok ama bodyde ne varsa ekliyor auth gerekli !
-app.post("/student/addLessons", jsonParser, function (req, res) {
-  client.connect(function (err, db) {
-    if (err) throw err;
-
-    var dbo = db.db("dist-proj");
-
-    //student can select lesson with username and id,
-    const { lessonCode } = req.body;
-    const token = req.headers["authorization"];
-
-    try {
-      var decoded = jwt.verify(
-        token.substring(7, token.length),
-        process.env.JWT_KEY
-      );
-    } catch (error) {
-      res.send("Invalid Token");
-      return;
+    } else {
+      res.send("Student role required.");
     }
-
-    dbo
-      .collection("users")
-      .findOne({ _id: ObjectId(decoded._id) })
-      .then((user) => {
-        if (user) {
-          dbo
-            .collection("studentCurrentLessons")
-            .insertOne(
-              { lessonCode, studentId: decoded._id },
-              function (err2, res2) {
-                if (err2) throw err2;
-
-                res.send("Lesson added.");
-
-                db.close();
-              }
-            );
-        } else {
-          res.send("Token expired.");
-        }
-      });
   });
+ 
 });
 
+//for selectlist, get all lessons
+app.get("/student/getLessons", async function (req, res) {
+  await authControl(req).then((user) => {
+    if (!user._id) {
+      res.send("user not found");
+    } else if (user.role === "student") {
+       client.connect(async function (err, db) {
+        if (err) throw err;
+    
+        await client
+        .db("dist-proj")
+          .collection("lessons")
+          .find({})
+          .toArray()
+          .then((item) => {
+            res.send(item);
+          });
+      });
+    } else {
+      res.send("Student role required.");
+    }
+  }); 
+});
+
+//lessoncode ile ders kayıt
+app.post("/student/addLessons", jsonParser, async function (req, res) {
+   await authControl(req).then((user) => {
+    if (!user._id) {
+      res.send("user not found");
+    } else if (user.role === "student") {
+      client.connect(function (err, db) {
+        if (err) throw err;
+      //student can select lesson with username and id,
+        const { lessonCode } = req.body;
+        
+        client
+        .db("dist-proj")
+          .collection("users")
+          .findOne({ _id: ObjectId(decoded._id) })
+          .then((user) => {
+            if (user) {
+              client
+              .db("dist-proj")
+                .collection("studentCurrentLessons")
+                .insertOne(
+                  { lessonCode, studentId: decoded._id },
+                  function (err2, res2) {
+                    if (err2) throw err2;
+    
+                    res.send("Lesson added.");
+    
+                    db.close();
+                  }
+                );
+            } else {
+              res.send("Token expired.");
+            }
+          });
+      });
+    } else {
+      res.send("Student role required.");
+    }
+  });
+ 
+});
+
+app.get("/student/getCurrentLessons", async function (req, res) {
+  await authControl(req).then((user) => {
+    if (!user._id) {
+      res.send("user not found");
+    } else if (user.role === "student") {
+       client.connect(async function (err, db) {
+        if (err) throw err;
+    
+        await client
+        .db("dist-proj")
+          .collection("studentCurrentLessons")
+          .find({studentId: user._id })
+          .toArray()
+          .then((item) => {
+            res.send(item);
+          });
+      });
+    } else {
+      res.send("Student role required.");
+    }
+  }); 
+});
+//lessoncode ve userid ile ders silme
 app.post("/student/breakLessons", jsonParser, function (req, res) {
   const { lessonCode } = req.body;
-
+  
   authControl(req).then((user) => {
     if (!user._id) {
       res.send("user not found");
-    } else if (user.role === "admin") {
+    } else if (user.role === "student") {
       client.connect();
       client
         .db("dist-proj")
@@ -335,74 +383,55 @@ app.post("/student/breakLessons", jsonParser, function (req, res) {
         })
         .catch((error) => res.send("an error occured! ", error));
     } else {
-      res.send("Admin role required.");
+      res.send("Student role required.");
     }
   });
 });
 
 
-
-//gettranscript
-app.get("/student/getTranscript", async function (req, res) {
-  await client.connect(async function (err, db) {
-    if (err) throw err;
-
-    var dbo = db.db("dist-proj");
-
-    all.forEach((element) => {
-      console.log(element._id, element.name);
-    });
-    await dbo
-      .collection("transcript")
-      .find({})
-      .toArray()
-      .then((item) => {
-        res.send(item);
+app.post("/student/addCommunity", jsonParser, async function (req,res) {
+  const{communityName } = req.body;
+  await authControl(req).then((user) => {
+    if (!user._id) {
+      res.send("user not found");
+    } else if (user.role === "student") {
+      client.connect(function (err, db) {
+        if (err) throw err;
+        client
+        .db("dist-proj")
+          .collection("studentCommunities")
+          .insertOne({communityName : communityName, studentId : studentId}, function (err2, res2) {
+            if (err2) throw err2;
+    
+            console.log("1 community inserted");
+            res.send("success community inserted");
+            db.close();
+          });
       });
+    } else {
+      res.send("Student role required.");
+    }
   });
 });
 
-app.post("/student/addCommunity", jsonParser, function (req,res) {
-  client.connect(function (err, db) {
-    if (err) throw err;
-
-    var dbo = db.db("dist-proj");
-    const{communityName } = req.body;
-    const { lessonCode, token} = req.body;
-    var decoded = jwt.verify(token, process.env.JWT_KEY);
-
-    var studentId=decoded._id;
-
-    dbo
-      .collection("studentCommunities")
-      .insertOne({communityName : communityName, studentId : studentId}, function (err2, res2) {
-        if (err2) throw err2;
-
-        console.log("1 community inserted");
-
-        db.close();
+app.get("/student/getCommuntiyInfo", async function (req, res) {
+ await authControl(req).then((user) => {
+    if (!user._id) {
+      res.send("user not found");
+    } else if (user.role === "student") {
+      client.connect(function (err, db) {
+        if (err) throw err;
+         client
+         .db("dist-proj")
+          .collection("studentCommunities")
+          .find({studentId : ObjectId(decoded._id) })
+          .then((item) => {
+            res.send(item);
+          });
       });
-  });
-
-  res.send("success community inserted");
-});
-
-app.get("/student/getCommuntiyInfo", function (req, res) {
-  const { token } = req.body;
-
-  var decoded = jwt.verify(token, process.env.JWT_KEY);
-
-  client.connect(function (err, db) {
-    if (err) throw err;
-
-    var dbo = db.db("dist-proj");
-
-    dbo
-      .collection("studentCommunities")
-      .find({studentId : ObjectId(decoded._id) })
-      .then((item) => {
-        res.send(item);
-      });
+    } else {
+      res.send("Student role required.");
+    }
   });
 });
 
