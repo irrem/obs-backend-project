@@ -315,14 +315,14 @@ app.post("/student/addLessons", jsonParser, async function (req, res) {
         client
         .db("dist-proj")
           .collection("users")
-          .findOne({ _id: ObjectId(decoded._id) })
+          .findOne({ _id: ObjectId(user._id) })
           .then((user) => {
             if (user) {
               client
               .db("dist-proj")
                 .collection("studentCurrentLessons")
                 .insertOne(
-                  { lessonCode, studentId: decoded._id },
+                  { lessonCode, studentId: user._id },
                   function (err2, res2) {
                     if (err2) throw err2;
     
